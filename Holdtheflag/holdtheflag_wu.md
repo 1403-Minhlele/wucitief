@@ -36,19 +36,25 @@ except Exception as e:
     - Hay là — chưa xóa hết? Ở đây tối quá, chẳng nhìn thấy gì cả.
 
 - Ta nhận được 1 file ảnh, tuy nhiên nội dung trong ảnh không rõ ràng. Kết hợp với đoạn mô tả, ta suy đoán rằng nếu căng chỉnh độ sáng hoặc độ tương phản của tấm ảnh thì sẽ thu được gì đó.
+
 ![alt text](image-2.png)
+
 - Brute force thứ tự 3 cái tên xuất hiện thì ta sẽ thu được flag.
 - 🚩 FLAG{GAC_MA_CO_LIN_LEN_DAO}
 ---
 ### Bài 3:
 - Ta thấy 1 tấm ảnh với một dãy kí tự. Nhìn đặc điểm của dãy kí tự đó thì khả năng có chuỗi mà hóa base64. Ta thử decode base64 với chuỗi đó thì ta thu được một chuỗi kí tự khác
+
 ![alt text](image-3.png)
+
 - Nhìn vào cấu trúc của chuỗi này, khả năng nó là Flag tuy nhiên đã bị mã hóa theo mật mã caesar với chữ I lùi 3 kí tự sẽ là chữ F. Như vậy ta chỉ cần lùi 3 kí tự với mỗi kí tự của dãy trên thì sẽ thu được flag.
 - 🚩 FLAG{TRAN_VAN_PHUONG}
 ---
 ### Bài 4:
 - Ta thu được 1 file audio với những tiếng tít khác chót tai (do ở tần số cao ). Khả năng đó là tiếng hiệu SSTV(Slow-Scan Television) thường được dùng để mã hóa 1 bức ảnh. Ta sẽ sử dụng công cụ 'qsstv' để ghi âm mà dịch đoạn âm thanh trên.
+
 ![alt text](image-4.png)
+
 - Như ta đã dự đoán, ta nhận được 1 bức ảnh chứa đường link google drive. Thử truy cập vào đường link trên thì ta thu được 2 file bao gồm 1 file chall.py và 1 file output.txt
 ```python
 import os
@@ -137,7 +143,9 @@ if __name__ == "__main__":
     decrypt_flag()
 ```
 - Sau khi chạy đoạn code trên thì ta thu được 1 tấm ảnh chứ câu hỏi và bối cảnh của flag.
+
 ![alt tetx](flag_recovered.png)
+
 - 🚩 FLAG{VONG_TRON_BAT_TU}
 ---
 ### Bài 5:
@@ -147,6 +155,7 @@ if __name__ == "__main__":
     - Một file. Một chuỗi ký tự lạ. Và đâu đó — một chìa khóa mà bạn đã biết từ đầu.
 
 - Ta nhận được 1 file tên HQ604.abc . Check thử bằng lệnh 'file' thì file là 1 file dữ liệu thô. Thử strings file thì ta thu được vài thông tin. 
+
 ![alt text](image-1.png)
 
     - signature `JFIF` là định đạng của 1 file .jpg hoặc 1 file .jpeg
@@ -155,6 +164,7 @@ if __name__ == "__main__":
 - Thử đổi đuôi file thành .jpg hoặc .jpeg nhưng cả 2 đều xuất hiện lỗi. Tức là khả năng vài ký tự hex của file đã bị thay đổi.
 
 - Do điều tra theo hướng đó không được, ta thử chuyển hướng sang chuỗi hex ta thu được ở trên. Thử quăng lên AI thì nó giải quyết theo hướng XOR với 1 key để thu được mã. Tuy nhiên không có key cụ thể nên kết quả là 1 chuỗi ký tự kỳ lạ. Thử đọc lại đoạn mô tả ` chìa khóa mà bạn biết từ đầu `. Ta suy luận được key khả năng là HQ604 (flag của bài đầu tiên). Như vậy ta chỉ cần XOR với key là HQ604 thì thu được kết quả.
+
 ![alt text](image.png)
 
 - 🚩 FLAG{CHU_QUYEN_THIENG_LIENG}
