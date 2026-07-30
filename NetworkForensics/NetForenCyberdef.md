@@ -1,6 +1,4 @@
-<center> 
-    <h1 style = "blue"> DanaBot </h1>
-</center>
+#DanaBot
 
 ## Description
 
