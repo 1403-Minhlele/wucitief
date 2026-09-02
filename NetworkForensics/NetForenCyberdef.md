@@ -115,3 +115,133 @@ _Ans: .dll_
 _Ans: e758e07113016aca55d9eda2b0ffeebe_
 
 - To answer this question, we first extract the downloaded file `resources.dll` from the HTTP objects in the PCAP. We then calculate its MD5 hash using the following command `md5sum resources.dll`.
+
+# Web Investigation Lab
+
+## Description
+
+- You are a cybersecurity analyst working in the Security Operations Center (SOC) of BookWorld, an expansive online bookstore renowned for its vast selection of literature. BookWorld prides itself on providing a seamless and secure shopping experience for book enthusiasts around the globe. Recently, you've been tasked with reinforcing the company's cybersecurity posture, monitoring network traffic, and ensuring that the digital environment remains safe from threats.
+
+- Late one evening, an automated alert is triggered by an unusual spike in database queries and server resource usage, indicating potential malicious activity. This anomaly raises concerns about the integrity of BookWorld's customer data and internal systems, prompting an immediate and thorough investigation.
+
+- As the lead analyst in this case, you are required to analyze the network traffic to uncover the nature of the suspicious activity. Your objectives include identifying the attack vector, assessing the scope of any potential data breach, and determining if the attacker gained further access to BookWorld's internal systems.
+
+---
+
+### Q1: By knowing the attacker's IP, we can analyze all logs and actions related to that IP and determine the extent of the attack, the duration of the attack, and the techniques used. Can you provide the attacker's IP?
+
+_Ans: 111.224.250.131_
+
+- The alert is triggered by an unusual spike in database queries and server resource usage, so we need to analyze the endpoints to determine which IP addresses exhibit suspicious behavior before investigating them further.
+
+![alt text](Web%20Investigation%20Lab/image-1.png)
+
+- IP addresses `73.124.22.98` and `111.224.250.131` generated the highest number of packets in the captured network traffic.
+
+Next, we analyze the TCP three-way handshake by filtering for packets with the SYN flag set (`SYN = 1`) and the ACK flag unset (`ACK = 1`) to identify the web server's IP address.
+
+![alt text](Web%20Investigation%20Lab/image-2.png)
+
+- After analyzing the handshake, we determine that the web server's IP address is `73.124.22.98`. Therefore, the remaining IP address, `111.224.250.131`, is the one that should be investigated further as the potential attacker.
+
+- After identifying 111.224.250.131 as the suspicious client, we analyzed its HTTP requests to the web server. We observed multiple GET requests to `/search.php` with malicious payloads in the search parameter, such as a single quote `(')` and SQL comment sequences `(--)`. These are common indicators of SQL Injection attempts, suggesting that this IP address is attempting to exploit a vulnerability in the web application.
+
+![alt text](Web%20Investigation%20Lab/image-1.png)
+
+---
+
+### Q2: If the geographical origin of an IP address is known to be from a region that has no business or expected traffic with our network, this can be an indicator of a targeted attack. Can you determine the origin city of the attacker?
+
+_Ans: Shijiazhuang_
+
+- We use this [website](https://dnschecker.org/ip-location.php?ip=111.224.250.131) to look up approximate geographical location of attacker's IP address.
+
+![alt text](Web%20Investigation%20Lab/image-3.png)
+
+---
+
+### Q3: Identifying the exploited script allows security teams to understand exactly which vulnerability was used in the attack. This knowledge is critical for finding the appropriate patch or workaround to close the security gap and prevent future exploitation. Can you provide the vulnerable PHP script name?
+
+_Ans: search.php_
+
+- Base on analysis in Q1, we determine that the vulnarable PHP script name is `search.php`.
+
+---
+
+### Q4: Establishing the timeline of an attack, starting from the initial exploitation attempt, what is the complete request URI of the first SQLi attempt by the attacker?
+
+_Ans: /search.php?search=book and 1=1; -- -_
+
+- To identify the first SQL injection attempt, we filter the HTTP requests sent by the suspicious IP address using the filter `ip.src == 111.224.250.131 && http contains "search.php"`. After sorting the HTTP requests chronologically, we observed that the attacker first submitted the payload `book%27`, which is a common SQL injection probe used to test whether user input is directly incorporated into an SQL query. However, the server immediately responded with an `HTTP 500 Internal Server Error`, indicating that the request caused a database error rather than a successful injection attempt. Therefore, this request is considered an initial probe rather than the SQL injection payload referenced in the question. The first actual SQL injection attempt is the subsequent request `/search.php?search=book%20and%201=1;%20--%20-`
+
+![alt text](Web%20Investigation%20Lab/image-4.png)
+
+![alt text](Web%20Investigation%20Lab/image-5.png)
+
+![alt text](Web%20Investigation%20Lab/image-6.png)
+
+---
+
+### Q5: Can you provide the complete request URI that was used to read the web server's available databases?
+
+_Ans: /search.php?search=book' UNION ALL SELECT NULL,CONCAT(0x7178766271,JSON_ARRAYAGG(CONCAT_WS(0x7a76676a636b,schema_name)),0x7176706a71) FROM INFORMATION_SCHEMA.SCHEMATA-- -_
+
+- To identify the request used to enumerate the available databases on the web server, we first extracted all requests to search.php and URL-decoded them for easier analysis using the following command `ls search.php* | python3 -c "import sys, urllib.parse; print(urllib.parse.unquote(sys.stdin.read().strip()))" > check_sear.txt`
+
+- We then examined the decoded requests for SQL injection payloads containing keywords such as `information_schema`, `schemata`, or `database()`, which are commonly used to retrieve the list of available databases.
+
+![alt text](Web%20Investigation%20Lab/image-8.png)
+
+---
+
+### Q6: Assessing the impact of the breach and data access is crucial, including the potential harm to the organization's reputation. What's the table name containing the website users data?
+
+_Ans: customers_
+
+- To identify the table containing the website users' data, we analyzed the SQL injection requests used to enumerate the database tables. The attacker queried the `INFORMATION_SCHEMA`.TABLES table, which stores metadata about all tables in the database.
+
+![alt text](Web%20Investigation%20Lab/image-9.png)
+
+- The server's response return the table names: `admin`, `books`, `customers`. Among these, the `customers` table is the most likely to contain the website users' data, as its name indicates that it stores customer account information.
+
+---
+
+### Q7: The website directories hidden from the public could serve as an unauthorized access point or contain sensitive functionalities not intended for public access. Can you provide the name of the directory discovered by the attacker?
+
+_Ans: /admin/_
+
+- By filtering `(ip.addr == 111.224.250.131 && http.request) || ( ip.addr == 73.124.22.98 && http.response.code == 200)` and reviewing the capture packets. We found the directories which discovered by the attacker. Among them, the hidden directory `/admin/` is accessible and returns an HTTP 200 OK response, indicating that it exists on the server. Therefore, the answer is `/admin/`.
+
+![alt text](Web%20Investigation%20Lab/image-10.png)
+
+![alt text](Web%20Investigation%20Lab/image-11.png)
+
+---
+
+### Q8: Knowing which credentials were used allows us to determine the extent of account compromise. What are the credentials used by the attacker for logging in?
+
+_Ans: admin:admin123!_
+
+- After determining that the attacker discovered the `/admin/` directory, we examined the subsequent HTTP requests to identify how the attacker attempted to authenticate to the web server.
+
+![alt text](Web%20Investigation%20Lab/image-12.png)
+
+![alt text](Web%20Investigation%20Lab/image-13.png)
+
+- We observed that, after discovering the login page, the attacker sent four HTTP `POST` requests to it. By analyzing these requests, we determined the username and password used by the attacker to authenticate to the web server.
+
+![alt text](Web%20Investigation%20Lab/image-14.png)
+
+![alt text](Web%20Investigation%20Lab/image-15.png)
+
+![alt text](Web%20Investigation%20Lab/image-16.png)
+
+---
+
+### Q9: We need to determine if the attacker gained further access or control of our web server. What's the name of the malicious script uploaded by the attacker?
+
+- As identified in Q8,
+
+![alt text](Web%20Investigation%20Lab/image-17.png)
+
+![alt text](Web%20Investigation%20Lab/image-18.png)
